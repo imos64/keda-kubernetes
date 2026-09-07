@@ -1,0 +1,109 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: keda-demo
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: scaling-demo-code
+  namespace: keda-demo
+data:
+  app.py: "\"\"\"Small CPU-work and Prometheus-metric demo; no external dependencies.\"\
+    \"\"\nimport hashlib, os, threading\nfrom http.server import BaseHTTPRequestHandler,\
+    \ ThreadingHTTPServer\ncount = 0\nlock = threading.Lock()\nclass Handler(BaseHTTPRequestHandler):\n\
+    \    def do_GET(self):\n        global count\n        path = self.path.split('?',1)[0]\n\
+    \        if path == '/healthz': body = b'ok\\n'\n        elif path == '/metrics':\n\
+    \            with lock: value = count\n            body = ('# HELP demo_requests_total\
+    \ Work requests served.\\n# TYPE demo_requests_total counter\\ndemo_requests_total\
+    \ %d\\n' % value).encode()\n        elif path in ('/', '/work'):\n           \
+    \ hashlib.pbkdf2_hmac('sha256',b'demo',b'autoscaling',100000)\n            with\
+    \ lock: count += 1\n            body = b'work complete\\n'\n        else:\n  \
+    \          self.send_error(404); return\n        self.send_response(200)\n   \
+    \     self.send_header('Content-Type','text/plain; version=0.0.4')\n        self.send_header('Content-Length',str(len(body)));\
+    \ self.end_headers(); self.wfile.write(body)\n    def log_message(self,*args):\
+    \ pass\nif __name__ == '__main__':\n    server=ThreadingHTTPServer((os.environ.get('BIND','0.0.0.0'),int(os.environ.get('PORT','8080'))),Handler)\n\
+    \    print(server.server_address[1],flush=True);server.serve_forever()\n"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scaling-demo
+  namespace: keda-demo
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: scaling-demo
+  template:
+    metadata:
+      labels:
+        app: scaling-demo
+      annotations:
+        prometheus.io/scrape: 'true'
+        prometheus.io/port: '8080'
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: app
+        image: python:3.12.12-slim-bookworm@sha256:593bd06efe90efa80dc4eee3948be7c0fde4134606dd40d8dd8dbcade98e669c
+        command:
+        - python
+        - /app/app.py
+        env:
+        - name: PYTHONDONTWRITEBYTECODE
+          value: '1'
+        ports:
+        - name: http
+          containerPort: 8080
+        resources:
+          requests:
+            cpu: 100m
+            memory: 64Mi
+          limits:
+            cpu: 500m
+            memory: 128Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+        volumeMounts:
+        - name: app
+          mountPath: /app
+          readOnly: true
+      volumes:
+      - name: app
+        configMap:
+          name: scaling-demo-code
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: scaling-demo
+  namespace: keda-demo
+spec:
+  type: ClusterIP
+  selector:
+    app: scaling-demo
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8080

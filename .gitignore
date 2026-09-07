@@ -1,0 +1,8 @@
+.tools/
+.venv/
+__pycache__/
+site/
+*.private.*
+*.tfstate*
+*.pem
+*.key

@@ -1,0 +1,19 @@
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: scaling-demo
+  namespace: keda-demo
+spec:
+  scaleTargetRef:
+    name: scaling-demo
+  pollingInterval: 30
+  cooldownPeriod: 300
+  minReplicaCount: 0
+  maxReplicaCount: 5
+  triggers:
+  - type: cron
+    metadata:
+      timezone: Etc/UTC
+      start: 0 8 * * 1-5
+      end: 0 18 * * 1-5
+      desiredReplicas: '3'

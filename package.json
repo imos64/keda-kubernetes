@@ -1,0 +1,23 @@
+{
+  "key": "keda",
+  "title": "KEDA",
+  "namespace": "keda",
+  "release": "keda",
+  "upstream": "https://keda.sh/docs/2.20/",
+  "kubernetesSchemaVersion": "1.35.0",
+  "chart": "keda-2.20.2.tgz",
+  "sources": [
+    {
+      "file": "vendor/keda-2.20.2.tgz",
+      "url": "https://kedacore.github.io/charts/keda-2.20.2.tgz",
+      "sha256": "db60b1fa60f0565fefa4ce2f87e855b6a8854363ee82962fbe28a12a70d64c4c"
+    },
+    {
+      "file": "vendor/kubernetes-crd-openapi.json",
+      "url": "https://raw.githubusercontent.com/kubernetes/kubernetes/v1.35.0/api/openapi-spec/v3/apis__apiextensions.k8s.io__v1_openapi.json",
+      "purpose": "validation only",
+      "sha256": "f6eb40887f8ce499c83f6032da1b35f980ecf8e6a312c06078f1356e3aa3d3e4"
+    }
+  ],
+  "demoNamespace": "keda-demo"
+}
