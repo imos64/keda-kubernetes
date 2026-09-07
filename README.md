@@ -10,6 +10,20 @@ An independent integration package with versioned upstream artifacts, reviewable
 Cron event → KEDA → generated HPA → Deployment replicas
 ```
 
+## High-Level Architecture
+
+KEDA evaluates the UTC cron trigger and controls activation plus its generated HPA. The example can scale the ordinary Service to zero outside the scheduled interval.
+
+```mermaid
+flowchart LR
+Schedule["Weekday UTC cron trigger"] --> KEDA["KEDA operator"]
+KEDA --> Metrics["KEDA external metrics API"]
+Metrics --> HPA["KEDA-owned HPA"]
+HPA --> Deployment["Demo Deployment: bounded replicas above zero"]
+KEDA --> Activation["Activation and cooldown to zero"]
+Activation --> Deployment
+```
+
 ## Validate locally
 
 Use Linux amd64, Python 3.12+, Helm 3.21.3 and Make. Validation downloads checksum-verified kubeconform v0.8.0 and uses Kubernetes 1.35.0 schemas; Internet access is required. Custom resources are checked against pinned upstream CRD schemas, and CRDs against Kubernetes' official OpenAPI schema. Admission behavior, CEL rules and live controller behavior require a real staging API server.
